@@ -3,47 +3,60 @@ package drift
 import (
 	"fmt"
 	"io"
-	"strings"
+	"os"
+	"text/tabwriter"
+	"time"
 )
 
-// Reporter formats and writes DriftResult output.
-type Reporter struct {
-	Writer io.Writer
+// Result holds the outcome of a single drift check.
+type Result struct {
+	ServiceName string
+	DriftedKeys []DriftedKey
+	CheckedAt   time.Time
 }
 
-// NewReporter creates a Reporter that writes to the given writer.
-func NewReporter(w io.Writer) *Reporter {
-	return &Reporter{Writer: w}
+// DriftedKey describes a single key that has drifted.
+type DriftedKey struct {
+	Key      string
+	Expected string
+	Actual   string
+	Reason   string
+}
+
+// HasDrift returns true when at least one key has drifted.
+func (r Result) HasDrift() bool {
+	return len(r.DriftedKeys) > 0
+}
+
+// Reporter formats and writes drift results.
+type Reporter struct {
+	out io.Writer
+}
+
+// NewReporter creates a Reporter that writes to out.
+// If out is nil, os.Stdout is used.
+func NewReporter(out io.Writer) *Reporter {
+	if out == nil {
+		out = os.Stdout
+	}
+	return &Reporter{out: out}
 }
 
 // Report writes a human-readable summary of the drift result.
-func (r *Reporter) Report(result DriftResult) {
-	if !result.Drifted {
-		fmt.Fprintf(r.Writer, "[OK] %s: no drift detected\n", result.ServiceName)
+func (r *Reporter) Report(result Result) {
+	if !result.HasDrift() {
+		fmt.Fprintf(r.out, "[OK] %s — no drift detected (checked at %s)\n",
+			result.ServiceName, result.CheckedAt.Format(time.RFC3339))
 		return
 	}
 
-	fmt.Fprintf(r.Writer, "[DRIFT] %s: %d difference(s) found\n", result.ServiceName, len(result.Diffs))
-	for _, d := range result.Diffs {
-		fmt.Fprintf(r.Writer, "  key=%q declared=%q deployed=%q\n", d.Key, d.Declared, d.Deployed)
-	}
-}
+	fmt.Fprintf(r.out, "[DRIFT] %s — %d key(s) drifted (checked at %s)\n",
+		result.ServiceName, len(result.DriftedKeys), result.CheckedAt.Format(time.RFC3339))
 
-// ReportAll writes a summary for multiple drift results and returns an exit-worthy status.
-func (r *Reporter) ReportAll(results []DriftResult) bool {
-	anyDrift := false
-	for _, res := range results {
-		r.Report(res)
-		if res.Drifted {
-			anyDrift = true
-		}
+	tw := tabwriter.NewWriter(r.out, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "  KEY\tEXPECTED\tACTUAL\tREASON")
+	for _, dk := range result.DriftedKeys {
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", dk.Key, dk.Expected, dk.Actual, dk.Reason)
 	}
-
-	fmt.Fprintln(r.Writer, strings.Repeat("-", 40))
-	if anyDrift {
-		fmt.Fprintln(r.Writer, "Result: DRIFT DETECTED")
-	} else {
-		fmt.Fprintln(r.Writer, "Result: ALL SERVICES IN SYNC")
-	}
-	return anyDrift
+	_ = tw.Flush()
 }
