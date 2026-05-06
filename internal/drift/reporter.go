@@ -60,3 +60,16 @@ func (r *Reporter) Report(result Result) {
 	}
 	_ = tw.Flush()
 }
+
+// ReportAll writes a summary for each result in the provided slice and returns
+// the total number of results that contained drift.
+func (r *Reporter) ReportAll(results []Result) int {
+	driftCount := 0
+	for _, result := range results {
+		r.Report(result)
+		if result.HasDrift() {
+			driftCount++
+		}
+	}
+	return driftCount
+}
