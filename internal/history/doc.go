@@ -1,21 +1,17 @@
-// Package history provides a simple file-backed store for persisting
-// drift check results over time.
+// Package history provides persistent storage and querying of drift check
+// results over time.
 //
-// Each check result is saved as an individual JSON file named after the
-// service and the Unix nanosecond timestamp of the check. Records can
-// be listed per service to observe how drift evolves across deployments.
+// Records are written as JSON files under a configurable directory, keyed by
+// service name and capture timestamp. The Store type exposes Save, List,
+// Query, and Latest operations.
 //
-// Typical usage:
+// # Storage layout
 //
-//	store, err := history.NewStore("/var/lib/driftcheck/history")
-//	if err != nil { ... }
+//	<dir>/<service-name>/<timestamp>.json
 //
-//	err = store.Save(history.Record{
-//		ServiceName: "payments",
-//		CheckedAt:   time.Now(),
-//		HasDrift:    true,
-//		Drifts:      map[string]string{"LOG_LEVEL": "want debug got info"},
-//	})
+// # Querying
 //
-//	records, err := store.List("payments")
+// QueryOptions supports filtering by service name, time range, drift
+// presence, and result count limiting. Results are always returned in
+// descending capture-time order (most recent first).
 package history
