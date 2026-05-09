@@ -38,10 +38,22 @@ func (d *Dispatcher) Dispatch(result drift.Result) error {
 
 	for _, n := range d.notifiers {
 		if err := n.Notify(a); err != nil {
-			return fmt.Errorf("alert dispatcher: notifier failed: %w", err)
+			return fmt.Errorf("alert dispatcher: notifier %T failed: %w", n, err)
 		}
 	}
 	return nil
+}
+
+// DispatchAll calls Dispatch for each result and collects all errors.
+// Unlike Dispatch, it does not stop on the first error.
+func (d *Dispatcher) DispatchAll(results []drift.Result) []error {
+	var errs []error
+	for _, r := range results {
+		if err := d.Dispatch(r); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
 }
 
 // driftedKeys extracts the list of keys that have drift from a Result.
