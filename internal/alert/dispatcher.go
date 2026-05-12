@@ -2,65 +2,51 @@ package alert
 
 import (
 	"fmt"
-	"time"
+	"log"
 
-	"github.com/example/driftcheck/internal/drift"
+	"driftcheck/internal/drift"
 )
 
-// Dispatcher evaluates drift results and dispatches alerts via registered notifiers.
+// Notifier is implemented by any type that can receive a drift result.
+type Notifier interface {
+	Notify(result drift.Result) error
+}
+
+// Dispatcher fans a drift result out to one or more Notifier implementations.
 type Dispatcher struct {
 	notifiers []Notifier
+	logger    *log.Logger
 }
 
-// NewDispatcher creates a Dispatcher with the provided notifiers.
-func NewDispatcher(notifiers ...Notifier) *Dispatcher {
-	return &Dispatcher{notifiers: notifiers}
+// NewDispatcher creates a Dispatcher that will call each supplied Notifier.
+func NewDispatcher(logger *log.Logger, notifiers ...Notifier) *Dispatcher {
+	if logger == nil {
+		logger = log.Default()
+	}
+	return &Dispatcher{notifiers: notifiers, logger: logger}
 }
 
-// Dispatch converts a drift.Result into an Alert and sends it to all notifiers.
-// It returns the first error encountered, if any.
+// Dispatch sends result to every registered Notifier.
+// All notifiers are attempted; a combined error is returned if any fail.
 func (d *Dispatcher) Dispatch(result drift.Result) error {
-	keys := driftedKeys(result)
-	sev := SeverityFor(len(keys))
-
-	msg := fmt.Sprintf("no drift detected for service %q", result.ServiceName)
-	if len(keys) > 0 {
-		msg = fmt.Sprintf("drift detected for service %q: %d key(s) differ", result.ServiceName, len(keys))
-	}
-
-	a := Alert{
-		ServiceName: result.ServiceName,
-		Severity:    sev,
-		Message:     msg,
-		DriftKeys:   keys,
-		OccurredAt:  time.Now(),
-	}
-
+	var errs []error
 	for _, n := range d.notifiers {
-		if err := n.Notify(a); err != nil {
-			return fmt.Errorf("alert dispatcher: notifier %T failed: %w", n, err)
+		if err := n.Notify(result); err != nil {
+			d.logger.Printf("alert dispatcher: notifier error: %v", err)
+			errs = append(errs, err)
 		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("alert dispatcher: %d notifier(s) failed: %v", len(errs), errs)
 	}
 	return nil
 }
 
-// DispatchAll calls Dispatch for each result and collects all errors.
-// Unlike Dispatch, it does not stop on the first error.
-func (d *Dispatcher) DispatchAll(results []drift.Result) []error {
-	var errs []error
-	for _, r := range results {
-		if err := d.Dispatch(r); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errs
-}
-
-// driftedKeys extracts the list of keys that have drift from a Result.
+// driftedKeys returns the keys that have drifted in result.
 func driftedKeys(result drift.Result) []string {
-	var keys []string
-	for _, d := range result.Diffs {
-		keys = append(keys, d.Key)
+	keys := make([]string, 0, len(result.Drifted))
+	for k := range result.Drifted {
+		keys = append(keys, k)
 	}
 	return keys
 }
