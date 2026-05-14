@@ -1,16 +1,15 @@
-// Package notify provides notification backends for delivering drift alerts
-// to external systems.
+// Package notify provides notification backends for driftcheck.
 //
 // Supported notifiers:
+//   - WebhookNotifier: HTTP POST to an arbitrary endpoint.
+//   - SlackNotifier: Slack incoming webhook.
+//   - EmailNotifier: SMTP email delivery.
+//   - PagerDutyNotifier: PagerDuty Events API v2.
+//   - MultiNotifier: fan-out to multiple notifiers.
+//   - RateLimitedNotifier: suppresses repeated alerts within a cooldown window.
+//   - RetryNotifier: retries a notifier on transient failure with configurable
+//     backoff and maximum attempt count.
 //
-//   - WebhookNotifier  – HTTP POST to an arbitrary endpoint
-//   - SlackNotifier    – Slack Incoming Webhooks
-//   - EmailNotifier    – SMTP email delivery
-//   - PagerDutyNotifier – PagerDuty Events API v2
-//
-// All notifiers implement the alert.Notifier interface and can be composed
-// with MultiNotifier to fan out alerts to several destinations simultaneously.
-//
-// Notifiers are silent (return nil) when the supplied drift.Result contains
-// no drifted keys, so callers do not need to gate on drift presence.
+// All notifiers implement the drift.Notifier interface and accept a
+// context.Context so callers can enforce deadlines and cancellation.
 package notify
