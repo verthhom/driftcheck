@@ -79,6 +79,13 @@ func (b *BufferedNotifier) Stop(ctx context.Context) error {
 	return b.flush(ctx, batch)
 }
 
+// Len returns the number of results currently buffered.
+func (b *BufferedNotifier) Len() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.buf)
+}
+
 func (b *BufferedNotifier) run() {
 	defer close(b.done)
 	for {
