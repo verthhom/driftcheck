@@ -62,3 +62,16 @@ func (s *Store) Latest(serviceName string) (*Record, error) {
 	}
 	return &records[0], nil
 }
+
+// CountDrifted returns the number of records that contain drift for the given
+// service name. If serviceName is empty, all services are counted.
+func (s *Store) CountDrifted(serviceName string) (int, error) {
+	records, err := s.Query(QueryOptions{
+		ServiceName: serviceName,
+		OnlyDrifted: true,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return len(records), nil
+}
