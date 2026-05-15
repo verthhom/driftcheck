@@ -1,13 +1,22 @@
-// Package notify provides Notifier implementations that deliver drift results
-// to external systems such as Slack, PagerDuty, email, and generic webhooks.
+// Package notify provides Notifier implementations for delivering drift
+// detection results to external systems.
 //
-// Decorator notifiers (MultiNotifier, FilteredNotifier, DedupeNotifier,
-// RateLimitedNotifier, RetryNotifier, ThrottleNotifier) wrap any Notifier and
-// add cross-cutting behaviour without modifying the underlying transport.
+// Core notifiers (Webhook, Slack, Email, PagerDuty) send results to a single
+// destination. Decorator notifiers wrap a core notifier to add cross-cutting
+// behaviour:
 //
-// ThrottleNotifier differs from RateLimitedNotifier in that it enforces a
-// per-service silence window: once a notification has been forwarded for a
-// given service, further calls within the window are suppressed rather than
-// queued. This prevents alert storms when a service drifts repeatedly within a
-// short period.
+//   - MultiNotifier   – fan-out to multiple notifiers
+//   - FilteredNotifier – gate forwarding behind a predicate
+//   - RoutingNotifier  – route to the first matching rule
+//   - DedupeNotifier   – suppress duplicate alerts
+//   - ThrottleNotifier – limit alert frequency per window
+//   - RateLimitedNotifier – enforce a minimum cooldown between sends
+//   - RetryNotifier    – retry on transient failures
+//   - CircuitBreakerNotifier – open circuit after repeated failures
+//   - BatchNotifier    – coalesce results over a time window
+//   - BufferedNotifier – queue results and flush asynchronously
+//   - DigestNotifier   – accumulate and flush combined digests
+//   - TransformingNotifier – mutate results before forwarding
+//   - FallbackNotifier – try primary, fall back on error
+//   - AuditNotifier    – log every notification attempt
 package notify
