@@ -83,6 +83,13 @@ func TestFilter_OnlyDrifted(t *testing.T) {
 	}
 }
 
+func TestFilter_EmptyInput(t *testing.T) {
+	got := Filter([]Record{}, FilterOptions{Service: "svc-a", OnlyDrifted: true})
+	if len(got) != 0 {
+		t.Fatalf("expected 0 records for empty input, got %d", len(got))
+	}
+}
+
 func TestFilter_Combined(t *testing.T) {
 	records := []Record{
 		makeFilterRecord("svc-a", early, map[string][2]string{"K": {"a", "b"}}),
